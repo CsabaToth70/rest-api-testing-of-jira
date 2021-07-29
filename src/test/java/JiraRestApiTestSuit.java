@@ -18,7 +18,7 @@ public class JiraRestApiTestSuit {
 
     @BeforeEach
     void setUpTesting() {
-        System.out.println("Tests start");
+        System.out.println("Tests start\n");
     }
 
 
@@ -74,6 +74,7 @@ public class JiraRestApiTestSuit {
         }
         System.out.println("Created Issue: " + pojo.getKey());
     }
+
 
 
 }
