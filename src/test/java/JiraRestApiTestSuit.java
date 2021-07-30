@@ -1,15 +1,12 @@
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import io.restassured.response.ValidatableResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.*;
-
 import java.io.IOException;
-
 import static io.restassured.RestAssured.given;
-
 
 public class JiraRestApiTestSuit {
     String issueIdOrKey = "";
@@ -19,7 +16,7 @@ public class JiraRestApiTestSuit {
 
     @BeforeEach
     void setUpTesting() {
-        System.out.println("Tests start\n");
+        System.out.println("New test case starts:");
     }
 
 
@@ -34,7 +31,7 @@ public class JiraRestApiTestSuit {
                         then().
                         statusCode(204);
 //                    log().all();
-                System.out.println("Deleted Issue: " + issueIdOrKey);
+                System.out.println("Deleted Issue: " + issueIdOrKey + "\n");
             } catch (Exception e) {
                 System.out.println("Error: deleting of " + issueIdOrKey + "issue was not successful" + e);
             } finally {
@@ -43,10 +40,11 @@ public class JiraRestApiTestSuit {
         }
     }
 
+
     @Test
     void createIssue_withValidInputs() throws IOException {
 
-        Response response = given().
+        ValidatableResponse validatableResponse = given().
                 auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
                 header("Content-Type", "application/json").
                 contentType(ContentType.JSON).
@@ -64,51 +62,19 @@ public class JiraRestApiTestSuit {
                         "  }\n" +
                         "}").
                 when().
-                request("POST", BASE_URL + SERVICE_URL_ISSUE).
-                then().
-                using().extract().response();
+                request("POST", BASE_URL + SERVICE_URL_ISSUE).then();
 
-        Pojo pojo = response.getBody().as(Pojo.class);
-
-        if (!pojo.getKey().equals("") || pojo.getKey() != null) {
-            issueIdOrKey = pojo.getKey();
-        }
-        System.out.println("Created Issue: " + pojo.getKey());
+        validatableResponse.statusCode(201);
+        setIssueIdOrKey(validatableResponse.using().extract().response().getBody().as(Pojo.class));
     }
+
 
     @Test
     void getAnIssueByKey_withValidInputs() throws IOException {
 //        Creating preconditions:
         String testSummaryText = "API test instance issue";
-        Response response = given().
-                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
-                header("Content-Type", "application/json").
-                contentType(ContentType.JSON).
-                accept(ContentType.JSON).
-                body("{\n" +
-                        "  \"fields\": {\n" +
-                        "    \"project\":\n" +
-                        "    {\n" +
-                        "      \"key\": \"MTP\"\n" +
-                        "    },\n" +
-                        "    \"summary\": \"" + testSummaryText + "\",\n" +
-                        "    \"issuetype\": {\n" +
-                        "      \"name\": \"Bug\"\n" +
-                        "    }\n" +
-                        "  }\n" +
-                        "}").
-                when().
-                request("POST", BASE_URL + SERVICE_URL_ISSUE).
-                then().
-                using().extract().response();
-
-
-        Pojo pojo = response.getBody().as(Pojo.class);
-
-        if (!pojo.getKey().equals("") || pojo.getKey() != null) {
-            issueIdOrKey = pojo.getKey();
-        }
-        System.out.println("Created Issue for testing: " + pojo.getKey());
+        Response response = createTestIssueAsPrecondition(testSummaryText);
+        setIssueIdOrKey(response.getBody().as(Pojo.class));
 
 //        The test case starts from here
         Response testResponse = given().
@@ -122,7 +88,6 @@ public class JiraRestApiTestSuit {
                 using().extract().response();
 
         assertEquals(testSummaryText, testResponse.getBody().jsonPath().get("fields.summary"));
-
     }
 
 
@@ -131,34 +96,9 @@ public class JiraRestApiTestSuit {
         //        Creating preconditions:
         String testSummaryText = "API test instance issue to test commenting";
         String testCommentText = "Shining comment for testing.";
-        Response response = given().
-                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
-                header("Content-Type", "application/json").
-                contentType(ContentType.JSON).
-                accept(ContentType.JSON).
-                body("{\n" +
-                        "  \"fields\": {\n" +
-                        "    \"project\":\n" +
-                        "    {\n" +
-                        "      \"key\": \"MTP\"\n" +
-                        "    },\n" +
-                        "    \"summary\": \"" + testSummaryText + "\",\n" +
-                        "    \"issuetype\": {\n" +
-                        "      \"name\": \"Bug\"\n" +
-                        "    }\n" +
-                        "  }\n" +
-                        "}").
-                request("POST", BASE_URL + SERVICE_URL_ISSUE).
-                then().
-                using().extract().response();
+        Response response = createTestIssueAsPrecondition(testSummaryText);
+        setIssueIdOrKey(response.getBody().as(Pojo.class));
 
-
-        Pojo pojo = response.getBody().as(Pojo.class);
-
-        if (!pojo.getKey().equals("") || pojo.getKey() != null) {
-            issueIdOrKey = pojo.getKey();
-        }
-        System.out.println("Created Issue for testing: " + pojo.getKey());
 //        The test case starts from here
         Response testResponse = given().
                 auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
@@ -174,8 +114,8 @@ public class JiraRestApiTestSuit {
                 using().extract().response();
 
         assertEquals(testCommentText, testResponse.getBody().jsonPath().get("body"));
-
     }
+
 
     @Test
     void updateAnExistingComment_withValidInputs() throws IOException {
@@ -183,33 +123,8 @@ public class JiraRestApiTestSuit {
         String testSummaryText = "API test instance issue to test commenting";
         String testCommentText = "Shining comment for testing.";
         String testUpdatedCommentText = "Modified comment for testing of Jira";
-        Response response = given().
-                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
-                header("Content-Type", "application/json").
-                contentType(ContentType.JSON).
-                accept(ContentType.JSON).
-                body("{\n" +
-                        "  \"fields\": {\n" +
-                        "    \"project\":\n" +
-                        "    {\n" +
-                        "      \"key\": \"MTP\"\n" +
-                        "    },\n" +
-                        "    \"summary\": \"" + testSummaryText + "\",\n" +
-                        "    \"issuetype\": {\n" +
-                        "      \"name\": \"Bug\"\n" +
-                        "    }\n" +
-                        "  }\n" +
-                        "}").
-                request("POST", BASE_URL + SERVICE_URL_ISSUE).
-                then().
-                using().extract().response();
-
-        Pojo pojo = response.getBody().as(Pojo.class);
-
-        if (!pojo.getKey().equals("") || pojo.getKey() != null) {
-            issueIdOrKey = pojo.getKey();
-        }
-        System.out.println("Created Issue for testing: " + pojo.getKey());
+        Response response = createTestIssueAsPrecondition(testSummaryText);
+        setIssueIdOrKey(response.getBody().as(Pojo.class));
 
         given().
                 auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
@@ -235,8 +150,8 @@ public class JiraRestApiTestSuit {
                 using().extract().response();
 
         assertEquals(testUpdatedCommentText, testResponse.getBody().jsonPath().get("body"));
-
     }
+
 
     @Test
     void deleteAnExistingComment_withValidInputs() throws IOException {
@@ -245,33 +160,8 @@ public class JiraRestApiTestSuit {
         String testCommentText = "Shining comment for testing.";
         String testCommentId = "";
 
-        Response response = given().
-                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
-                header("Content-Type", "application/json").
-                contentType(ContentType.JSON).
-                accept(ContentType.JSON).
-                body("{\n" +
-                        "  \"fields\": {\n" +
-                        "    \"project\":\n" +
-                        "    {\n" +
-                        "      \"key\": \"MTP\"\n" +
-                        "    },\n" +
-                        "    \"summary\": \"" + testSummaryText + "\",\n" +
-                        "    \"issuetype\": {\n" +
-                        "      \"name\": \"Bug\"\n" +
-                        "    }\n" +
-                        "  }\n" +
-                        "}").
-                request("POST", BASE_URL + SERVICE_URL_ISSUE).
-                then().
-                using().extract().response();
-
-        Pojo pojo = response.getBody().as(Pojo.class);
-
-        if (!pojo.getKey().equals("") || pojo.getKey() != null) {
-            issueIdOrKey = pojo.getKey();
-        }
-        System.out.println("Created Issue for testing: " + pojo.getKey());
+        Response response = createTestIssueAsPrecondition(testSummaryText);
+        setIssueIdOrKey(response.getBody().as(Pojo.class));
 
         Response testCommentResponse = given().
                 auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
@@ -297,9 +187,38 @@ public class JiraRestApiTestSuit {
                 when().
                 request("DELETE", BASE_URL + SERVICE_URL_ISSUE + issueIdOrKey + "/comment/" + testCommentId).
                 then().statusCode(204);
-
-        System.out.println("milestone for check the test");
     }
 
 
+    private Response createTestIssueAsPrecondition(String testSummaryText) throws IOException {
+        return given().
+                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
+                header("Content-Type", "application/json").
+                contentType(ContentType.JSON).
+                accept(ContentType.JSON).
+                body("{\n" +
+                        "  \"fields\": {\n" +
+                        "    \"project\":\n" +
+                        "    {\n" +
+                        "      \"key\": \"MTP\"\n" +
+                        "    },\n" +
+                        "    \"summary\": \"" + testSummaryText + "\",\n" +
+                        "    \"issuetype\": {\n" +
+                        "      \"name\": \"Bug\"\n" +
+                        "    }\n" +
+                        "  }\n" +
+                        "}").
+                when().
+                request("POST", BASE_URL + SERVICE_URL_ISSUE).
+                then().
+                using().extract().response();
+    }
+
+
+    private void setIssueIdOrKey(Pojo pojo) {
+        if (!pojo.getKey().equals("") || pojo.getKey() != null) {
+            issueIdOrKey = pojo.getKey();
+        }
+        System.out.println("Created Issue: " + pojo.getKey());
+    }
 }

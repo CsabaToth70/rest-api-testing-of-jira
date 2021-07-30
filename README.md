@@ -26,7 +26,7 @@ directory in this format:
 
 ## Tasks of the project:
 
-1. Create an issue via the Jira REST API and validate that the response code is 200 OK<br>
+1. Create an issue via the Jira REST API and validate that the response code is 201 OK<br>
 2. Get an issue by Key and validate the value of the summary field
 3. Create a new comment to an existing Issue and validate it on the issue endpoint
 4. Update an existing comment on an Issue and validate it on the issue endpoint
