@@ -4,6 +4,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.io.IOException;
 
 import static io.restassured.RestAssured.given;
@@ -11,8 +13,7 @@ import static io.restassured.RestAssured.given;
 
 public class JiraRestApiTestSuit {
     String BASE_URL = "https://jira-auto.codecool.metastage.net";
-    String SERVICE_URL_CREATE_ISSUE = "/rest/api/latest/issue";
-    String SERVICE_URL_DELETE_ISSUE = "/rest/api/latest/issue/";
+    String SERVICE_URL_ISSUE = "/rest/api/latest/issue/";
     String createdIssueId;
 
 
@@ -29,7 +30,7 @@ public class JiraRestApiTestSuit {
                 given().
                         auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
                         when().
-                        delete(BASE_URL + SERVICE_URL_DELETE_ISSUE + createdIssueId).
+                        request("DELETE", BASE_URL + SERVICE_URL_ISSUE + createdIssueId).
                         then().
                         statusCode(204);
 //                    log().all();
@@ -43,7 +44,7 @@ public class JiraRestApiTestSuit {
     }
 
     @Test
-    void loginAndCreateIssue_withValidInputs() throws IOException, ClassNotFoundException {
+    void CreateIssue_withValidInputs() throws IOException {
 
         Response response = given().
                 auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
@@ -63,7 +64,7 @@ public class JiraRestApiTestSuit {
                         "  }\n" +
                         "}").
                 when().
-                post(BASE_URL + SERVICE_URL_CREATE_ISSUE).
+                request("POST", BASE_URL + SERVICE_URL_ISSUE).
                 then().
                 using().extract().response();
 
@@ -75,6 +76,54 @@ public class JiraRestApiTestSuit {
         System.out.println("Created Issue: " + pojo.getKey());
     }
 
+    @Test
+    void GetAnIssueByKey_withValidInputs() throws IOException {
+//        Creating preconditions:
+        String testSummaryText = "API test instance issue";
+        Response response = given().
+                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
+                header("Content-Type", "application/json").
+                contentType(ContentType.JSON).
+                accept(ContentType.JSON).
+                body("{\n" +
+                        "  \"fields\": {\n" +
+                        "    \"project\":\n" +
+                        "    {\n" +
+                        "      \"key\": \"MTP\"\n" +
+                        "    },\n" +
+                        "    \"summary\": \"" + testSummaryText + "\",\n" +
+                        "    \"issuetype\": {\n" +
+                        "      \"name\": \"Bug\"\n" +
+                        "    }\n" +
+                        "  }\n" +
+                        "}").
+                when().
+                request("POST", BASE_URL + SERVICE_URL_ISSUE).
+                then().
+                using().extract().response();
+
+
+        Pojo pojo = response.getBody().as(Pojo.class);
+
+        if (!pojo.getKey().equals("") || pojo.getKey() != null) {
+            createdIssueId = pojo.getKey();
+        }
+        System.out.println("Created Issue for testing: " + pojo.getKey());
+
+//        The test case starts from here
+        Response testResponse = given().
+                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
+                header("Content-Type", "application/json").
+                contentType(ContentType.JSON).
+                accept(ContentType.JSON).
+                when().
+                request("GET", BASE_URL + SERVICE_URL_ISSUE + createdIssueId).
+                then().
+                using().extract().response();
+
+        assertEquals(testSummaryText, testResponse.getBody().jsonPath().get("fields.summary"));
+
+    }
 
 
 }
