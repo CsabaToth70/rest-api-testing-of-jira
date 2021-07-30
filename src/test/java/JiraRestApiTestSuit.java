@@ -15,7 +15,6 @@ public class JiraRestApiTestSuit {
     String issueIdOrKey = "";
     String BASE_URL = "https://jira-auto.codecool.metastage.net";
     String SERVICE_URL_ISSUE = "/rest/api/latest/issue/";
-//    String SERVICE_URL_COMMENT = "/rest/api/latest/issue/";
 
 
     @BeforeEach
@@ -178,5 +177,65 @@ public class JiraRestApiTestSuit {
 
     }
 
+    @Test
+    void UpdateAnExistingComment_withValidInputs() throws IOException {
+        //        Creating preconditions:
+        String testSummaryText = "API test instance issue to test commenting";
+        String testCommentText = "Shining comment for testing.";
+        String testUpdatedCommentText = "Modified comment for testing of Jira";
+        Response response = given().
+                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
+                header("Content-Type", "application/json").
+                contentType(ContentType.JSON).
+                accept(ContentType.JSON).
+                body("{\n" +
+                        "  \"fields\": {\n" +
+                        "    \"project\":\n" +
+                        "    {\n" +
+                        "      \"key\": \"MTP\"\n" +
+                        "    },\n" +
+                        "    \"summary\": \"" + testSummaryText + "\",\n" +
+                        "    \"issuetype\": {\n" +
+                        "      \"name\": \"Bug\"\n" +
+                        "    }\n" +
+                        "  }\n" +
+                        "}").
+                request("POST", BASE_URL + SERVICE_URL_ISSUE).
+                then().
+                using().extract().response();
+
+        Pojo pojo = response.getBody().as(Pojo.class);
+
+        if (!pojo.getKey().equals("") || pojo.getKey() != null) {
+            issueIdOrKey = pojo.getKey();
+        }
+        System.out.println("Created Issue for testing: " + pojo.getKey());
+
+        given().
+                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
+                header("Content-Type", "application/json").
+                contentType(ContentType.JSON).
+                accept(ContentType.JSON).
+                body("{\n" +
+                        "    \"body\": \"" + testCommentText + "\"\n" +
+                        "}").
+                when().
+                request("POST", BASE_URL + SERVICE_URL_ISSUE + issueIdOrKey + "/comment");
+
+        //        The test case starts from here
+        Response testResponse = given().
+                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
+                header("Content-Type", "application/json").
+                contentType(ContentType.JSON).
+                accept(ContentType.JSON).
+                body("{     \"body\": \"" + testUpdatedCommentText + "\" }").
+                when().
+                request("POST", BASE_URL + SERVICE_URL_ISSUE + issueIdOrKey + "/comment").
+                then().
+                using().extract().response();
+
+        assertEquals(testUpdatedCommentText, testResponse.getBody().jsonPath().get("body"));
+
+    }
 
 }
