@@ -44,7 +44,7 @@ public class JiraRestApiTestSuit {
     }
 
     @Test
-    void CreateIssue_withValidInputs() throws IOException {
+    void createIssue_withValidInputs() throws IOException {
 
         Response response = given().
                 auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
@@ -77,7 +77,7 @@ public class JiraRestApiTestSuit {
     }
 
     @Test
-    void GetAnIssueByKey_withValidInputs() throws IOException {
+    void getAnIssueByKey_withValidInputs() throws IOException {
 //        Creating preconditions:
         String testSummaryText = "API test instance issue";
         Response response = given().
@@ -127,7 +127,7 @@ public class JiraRestApiTestSuit {
 
 
     @Test
-    void CreateACommentToAnExistingIssue_withValidInputs() throws IOException {
+    void createACommentToAnExistingIssue_withValidInputs() throws IOException {
         //        Creating preconditions:
         String testSummaryText = "API test instance issue to test commenting";
         String testCommentText = "Shining comment for testing.";
@@ -178,7 +178,7 @@ public class JiraRestApiTestSuit {
     }
 
     @Test
-    void UpdateAnExistingComment_withValidInputs() throws IOException {
+    void updateAnExistingComment_withValidInputs() throws IOException {
         //        Creating preconditions:
         String testSummaryText = "API test instance issue to test commenting";
         String testCommentText = "Shining comment for testing.";
@@ -237,5 +237,69 @@ public class JiraRestApiTestSuit {
         assertEquals(testUpdatedCommentText, testResponse.getBody().jsonPath().get("body"));
 
     }
+
+    @Test
+    void deleteAnExistingComment_withValidInputs() throws IOException {
+        //        Creating preconditions:
+        String testSummaryText = "API test instance issue to test commenting";
+        String testCommentText = "Shining comment for testing.";
+        String testCommentId = "";
+
+        Response response = given().
+                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
+                header("Content-Type", "application/json").
+                contentType(ContentType.JSON).
+                accept(ContentType.JSON).
+                body("{\n" +
+                        "  \"fields\": {\n" +
+                        "    \"project\":\n" +
+                        "    {\n" +
+                        "      \"key\": \"MTP\"\n" +
+                        "    },\n" +
+                        "    \"summary\": \"" + testSummaryText + "\",\n" +
+                        "    \"issuetype\": {\n" +
+                        "      \"name\": \"Bug\"\n" +
+                        "    }\n" +
+                        "  }\n" +
+                        "}").
+                request("POST", BASE_URL + SERVICE_URL_ISSUE).
+                then().
+                using().extract().response();
+
+        Pojo pojo = response.getBody().as(Pojo.class);
+
+        if (!pojo.getKey().equals("") || pojo.getKey() != null) {
+            issueIdOrKey = pojo.getKey();
+        }
+        System.out.println("Created Issue for testing: " + pojo.getKey());
+
+        Response testCommentResponse = given().
+                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
+                header("Content-Type", "application/json").
+                contentType(ContentType.JSON).
+                accept(ContentType.JSON).
+                body("{\n" +
+                        "    \"body\": \"" + testCommentText + "\"\n" +
+                        "}").
+                when().
+                request("POST", BASE_URL + SERVICE_URL_ISSUE + issueIdOrKey + "/comment").
+                then().
+                using().extract().response();
+
+        testCommentId = testCommentResponse.getBody().jsonPath().get("id");
+
+        //        The test case starts from here
+        given().
+                auth().preemptive().basic(TestingHelper.getProperty("username"), TestingHelper.getProperty("password")).
+                header("Content-Type", "application/json").
+                contentType(ContentType.JSON).
+                accept(ContentType.JSON).
+                when().
+                request("DELETE", BASE_URL + SERVICE_URL_ISSUE + issueIdOrKey + "/comment/" + testCommentId).
+                then().statusCode(204);
+
+        System.out.println("milestone for check the test");
+    }
+
 
 }
